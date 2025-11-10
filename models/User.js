@@ -145,6 +145,42 @@ class User {
       throw new Error(`Error al obtener usuario por email: ${error.message}`);
     }
   }
+
+  // Login - Autenticar usuario
+  static async login(email, password) {
+    const db = getDB();
+    const usersCollection = db.collection("users");
+
+    try {
+      // Validar que se proporcionen email y password
+      if (!email || !password) {
+        throw new Error("Email y contraseña son requeridos");
+      }
+
+      // Validar formato de email
+      if (!this.validateEmail(email)) {
+        throw new Error("Formato de email inválido");
+      }
+
+      // Buscar usuario por email
+      const user = await usersCollection.findOne({ email });
+
+      if (!user) {
+        throw new Error("Credenciales inválidas");
+      }
+
+      // Verificar contraseña (comparación directa - en producción usar bcrypt)
+      if (user.password !== password) {
+        throw new Error("Credenciales inválidas");
+      }
+
+      // Retornar usuario sin la contraseña
+      const { password: _, ...userWithoutPassword } = user;
+      return userWithoutPassword;
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 module.exports = User;

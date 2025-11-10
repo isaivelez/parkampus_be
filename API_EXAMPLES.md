@@ -182,3 +182,114 @@ curl -X GET http://localhost:3000/api/users/507f1f77bcf86cd799439011
 1. Inicia el servidor: `npm run dev`
 2. Usa Postman, Insomnia o cURL para hacer las peticiones
 3. El servidor estará disponible en `http://localhost:3000`
+
+---
+
+## 4. Login de Usuario (POST /api/login)
+
+### Endpoint:
+
+```
+POST http://localhost:3000/api/login
+```
+
+### Body del Request:
+
+```json
+{
+  "email": "juan.perez@estudiante.edu.co",
+  "password": "miPassword123"
+}
+```
+
+### Respuesta exitosa (200 OK):
+
+```json
+{
+  "success": true,
+  "message": "Login exitoso",
+  "data": {
+    "user": {
+      "_id": "507f1f77bcf86cd799439011",
+      "first_name": "Juan",
+      "last_name": "Pérez García",
+      "email": "juan.perez@estudiante.edu.co",
+      "user_type": "estudiante",
+      "created_at": "2024-11-10T15:30:00.000Z",
+      "updated_at": "2024-11-10T15:30:00.000Z"
+    }
+  }
+}
+```
+
+### Respuesta de error - Credenciales inválidas (401 Unauthorized):
+
+```json
+{
+  "success": false,
+  "message": "Credenciales inválidas",
+  "data": null
+}
+```
+
+### Respuesta de error - Campos faltantes (401 Unauthorized):
+
+```json
+{
+  "success": false,
+  "message": "Email y contraseña son requeridos",
+  "data": null
+}
+```
+
+### Comando cURL para Login:
+
+```bash
+curl -X POST http://localhost:3000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "juan.perez@estudiante.edu.co",
+    "password": "miPassword123"
+  }'
+```
+
+### Ejemplos de Login para diferentes tipos de usuarios:
+
+**Login como Estudiante:**
+
+```json
+{
+  "email": "juan.perez@estudiante.edu.co",
+  "password": "miPassword123"
+}
+```
+
+**Login como Celador:**
+
+```json
+{
+  "email": "carlos.rodriguez@parkampus.com",
+  "password": "celador2024"
+}
+```
+
+**Login como Empleado:**
+
+```json
+{
+  "email": "maria.gonzalez@universidad.edu.co",
+  "password": "empleado456"
+}
+```
+
+---
+
+## Resumen de Endpoints
+
+| Método | Endpoint         | Descripción                |
+| ------ | ---------------- | -------------------------- |
+| POST   | `/api/users`     | Crear nuevo usuario        |
+| GET    | `/api/users`     | Obtener todos los usuarios |
+| GET    | `/api/users/:id` | Obtener usuario por ID     |
+| POST   | `/api/login`     | Autenticar usuario         |
+| GET    | `/health`        | Health check del servidor  |
