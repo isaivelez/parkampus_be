@@ -18,11 +18,13 @@ npm install
 ## 🏃‍♂️ Ejecución
 
 ### Modo desarrollo (con hot-reload)
+
 ```bash
 npm run dev
 ```
 
 ### Modo producción
+
 ```bash
 npm start
 ```
@@ -30,11 +32,13 @@ npm start
 ## 🔍 Endpoints
 
 ### Health Check
+
 ```
 GET /health
 ```
 
 Respuesta:
+
 ```json
 {
   "status": "OK",
@@ -45,11 +49,13 @@ Respuesta:
 ```
 
 ### Información de la API
+
 ```
 GET /
 ```
 
 Respuesta:
+
 ```json
 {
   "message": "¡Bienvenido a Parkampus Backend API!",

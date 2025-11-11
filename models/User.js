@@ -8,6 +8,7 @@ class User {
     this.email = userData.email;
     this.password = userData.password;
     this.user_type = userData.user_type;
+    this.expo_push_token = userData.expo_push_token || null; // Token para notificaciones push
     this.created_at = new Date();
     this.updated_at = new Date();
   }
@@ -179,6 +180,72 @@ class User {
       return userWithoutPassword;
     } catch (error) {
       throw error;
+    }
+  }
+
+  // Actualizar token de notificaciones push
+  static async updatePushToken(userId, expoPushToken) {
+    const db = getDB();
+    const usersCollection = db.collection("users");
+
+    try {
+      if (!ObjectId.isValid(userId)) {
+        throw new Error("ID de usuario inválido");
+      }
+
+      // Validar que el token tenga el formato correcto de Expo
+      if (
+        expoPushToken &&
+        !expoPushToken.startsWith("ExponentPushToken[") &&
+        !expoPushToken.startsWith("ExpoPushToken[")
+      ) {
+        throw new Error("Formato de Expo Push Token inválido");
+      }
+
+      const result = await usersCollection.findOneAndUpdate(
+        { _id: new ObjectId(userId) },
+        {
+          $set: {
+            expo_push_token: expoPushToken,
+            updated_at: new Date(),
+          },
+        },
+        { returnDocument: "after", projection: { password: 0 } }
+      );
+
+      if (!result) {
+        throw new Error("Usuario no encontrado");
+      }
+
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Obtener todos los tokens de notificaciones activos
+  static async getAllPushTokens(userType = null) {
+    const db = getDB();
+    const usersCollection = db.collection("users");
+
+    try {
+      const query = {
+        expo_push_token: { $exists: true, $ne: null },
+      };
+
+      // Filtrar por tipo de usuario si se especifica
+      if (userType) {
+        query.user_type = userType;
+      }
+
+      const users = await usersCollection
+        .find(query, { projection: { expo_push_token: 1 } })
+        .toArray();
+
+      // Retornar solo los tokens
+      return users.map((user) => user.expo_push_token).filter((token) => token);
+    } catch (error) {
+      throw new Error(`Error al obtener tokens push: ${error.message}`);
     }
   }
 }
