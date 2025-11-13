@@ -1,4 +1,4 @@
-const { MongoClient } = require("mongodb");
+const { MongoClient, ServerApiVersion } = require("mongodb");
 
 let db = null;
 let client = null;
@@ -15,9 +15,21 @@ const connectDB = async () => {
 
     console.log("🔄 Conectando a MongoDB Atlas...");
 
-    client = new MongoClient(mongoURI);
+    client = new MongoClient(mongoURI, {
+      serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+      },
+      serverSelectionTimeoutMS: 10000, // 10 segundos
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 10000,
+    });
 
     await client.connect();
+
+    // Send a ping to confirm a successful connection
+    await client.db("admin").command({ ping: 1 });
 
     // Usar la base de datos especificada en las variables de entorno
     const dbName = process.env.MONGO_INITDB_DATABASE || "parkampus";
