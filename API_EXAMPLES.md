@@ -10,6 +10,9 @@ http://localhost:3000/api/users
 
 ## 1. Crear Usuario (POST /api/users)
 
+> [!NOTE]
+> Las contraseñas se hashean automáticamente antes de guardarse en la base de datos.
+
 ### Ejemplo 1: Estudiante
 
 ```json
@@ -209,6 +212,7 @@ POST http://localhost:3000/api/login
   "success": true,
   "message": "Login exitoso",
   "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "user": {
       "_id": "507f1f77bcf86cd799439011",
       "first_name": "Juan",
@@ -221,6 +225,9 @@ POST http://localhost:3000/api/login
   }
 }
 ```
+
+> [!IMPORTANT]
+> El token JWT devuelto debe enviarse en el header `Authorization` para acceder a rutas protegidas.
 
 ### Respuesta de error - Credenciales inválidas (401 Unauthorized):
 
@@ -284,12 +291,31 @@ curl -X POST http://localhost:3000/api/login \
 
 ---
 
+## 5. Rutas Protegidas
+
+Para acceder a rutas protegidas, debes incluir el token en el header `Authorization`.
+
+### Header:
+
+```
+Authorization: Bearer <tu_token_jwt>
+```
+
+### Ejemplo: Obtener Perfil (GET /api/users/profile)
+
+```bash
+curl -X GET http://localhost:3000/api/users/profile \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
 ## Resumen de Endpoints
 
-| Método | Endpoint         | Descripción                |
-| ------ | ---------------- | -------------------------- |
-| POST   | `/api/users`     | Crear nuevo usuario        |
-| GET    | `/api/users`     | Obtener todos los usuarios |
-| GET    | `/api/users/:id` | Obtener usuario por ID     |
-| POST   | `/api/login`     | Autenticar usuario         |
-| GET    | `/health`        | Health check del servidor  |
+| Método | Endpoint         | Descripción                | Auth Requerida |
+| ------ | ---------------- | -------------------------- | -------------- |
+| POST   | `/api/users`     | Crear nuevo usuario        | No             |
+| GET    | `/api/users`     | Obtener todos los usuarios | No             |
+| GET    | `/api/users/:id` | Obtener usuario por ID     | No             |
+| POST   | `/api/login`     | Autenticar usuario         | No             |
+| GET    | `/api/users/profile` | Obtener perfil propio  | **Sí**         |
+| GET    | `/health`        | Health check del servidor  | No             |
+
