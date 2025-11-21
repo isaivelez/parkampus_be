@@ -1,7 +1,40 @@
 const express = require("express");
 const User = require("../models/User");
+const verifyToken = require("../middleware/auth");
 
 const router = express.Router();
+
+// GET /users/profile - Obtener perfil del usuario autenticado (Ruta protegida)
+router.get("/profile", verifyToken, async (req, res) => {
+  try {
+    // req.user viene del middleware verifyToken
+    const userId = req.user.id;
+    console.log(`👤 Obteniendo perfil para usuario ID: ${userId}`);
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Usuario no encontrado",
+        data: null,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Perfil obtenido exitosamente",
+      data: user,
+    });
+  } catch (error) {
+    console.error("❌ Error al obtener perfil:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Error en el servidor",
+      data: null,
+    });
+  }
+});
 
 // POST /users - Crear nuevo usuario
 router.post("/", async (req, res) => {

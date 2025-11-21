@@ -1,5 +1,6 @@
 const { getDB } = require("../config/database");
 const { ObjectId } = require("mongodb");
+const bcrypt = require("bcryptjs");
 
 class User {
   constructor(userData) {
@@ -75,6 +76,10 @@ class User {
     if (existingUser) {
       throw new Error("Ya existe un usuario con este email");
     }
+
+    // Hashear contraseña
+    const salt = await bcrypt.genSalt(10);
+    userData.password = await bcrypt.hash(userData.password, salt);
 
     // Crear nueva instancia de usuario
     const newUser = new User(userData);
@@ -170,8 +175,9 @@ class User {
         throw new Error("Credenciales inválidas");
       }
 
-      // Verificar contraseña (comparación directa - en producción usar bcrypt)
-      if (user.password !== password) {
+      // Verificar contraseña con bcrypt
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
         throw new Error("Credenciales inválidas");
       }
 
