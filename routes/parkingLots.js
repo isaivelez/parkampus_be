@@ -1,10 +1,14 @@
 const express = require("express");
 const ParkingLot = require("../models/ParkingLot");
+const { verifyToken, verifyRole } = require("../middleware/auth");
 
 const router = express.Router();
 
-// POST /api/parking-lots - Crear nuevo parking lot
-router.post("/", async (req, res) => {
+// Aplicar verificación de token a todas las rutas
+router.use(verifyToken);
+
+// POST /api/parking-lots - Crear nuevo parking lot (Solo Celador)
+router.post("/", verifyRole(["celador"]), async (req, res) => {
   try {
     console.log("🅿️  Creando nuevo parking lot:", req.body);
 
@@ -26,7 +30,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// GET /api/parking-lots - Obtener todos los parking lots
+// GET /api/parking-lots - Obtener todos los parking lots (Todos los usuarios autenticados)
 router.get("/", async (req, res) => {
   try {
     console.log("📋 Obteniendo todos los parking lots");
@@ -50,7 +54,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/parking-lots/:id - Obtener parking lot por ID
+// GET /api/parking-lots/:id - Obtener parking lot por ID (Todos los usuarios autenticados)
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -82,8 +86,8 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// PUT /api/parking-lots/:id - Actualizar parking lot
-router.put("/:id", async (req, res) => {
+// PUT /api/parking-lots/:id - Actualizar parking lot (Solo Celador)
+router.put("/:id", verifyRole(["celador"]), async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`✏️  Actualizando parking lot con ID: ${id}`, req.body);
@@ -109,8 +113,8 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// PATCH /api/parking-lots/:id - Actualización parcial de parking lot
-router.patch("/:id", async (req, res) => {
+// PATCH /api/parking-lots/:id - Actualización parcial de parking lot (Solo Celador)
+router.patch("/:id", verifyRole(["celador"]), async (req, res) => {
   try {
     const { id } = req.params;
     console.log(
@@ -139,8 +143,8 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
-// DELETE /api/parking-lots/:id - Eliminar parking lot
-router.delete("/:id", async (req, res) => {
+// DELETE /api/parking-lots/:id - Eliminar parking lot (Solo Celador)
+router.delete("/:id", verifyRole(["celador"]), async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`🗑️  Eliminando parking lot con ID: ${id}`);

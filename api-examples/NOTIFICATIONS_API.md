@@ -29,17 +29,19 @@ Este sistema permite enviar notificaciones push a aplicaciones móviles usando *
 
 ---
 
-## 📋 Endpoints Disponibles
+## 🔐 Autenticación y RBAC
 
-| Método | Endpoint                            | Descripción                                |
-| ------ | ----------------------------------- | ------------------------------------------ |
-| POST   | `/api/notifications/register-token` | Registrar token push de un dispositivo     |
-| POST   | `/api/notifications/send-to-all`    | Enviar notificación a todos los usuarios   |
-| POST   | `/api/notifications/send-to-users`  | Enviar notificación a usuarios específicos |
-| GET    | `/api/notifications`                | Obtener historial de notificaciones        |
-| GET    | `/api/notifications/:id`            | Obtener una notificación por ID            |
-| DELETE | `/api/notifications/:id`            | Eliminar una notificación                  |
-| PUT    | `/api/users/:id`                    | Actualizar token push de un usuario        |
+Todas las rutas requieren autenticación mediante JWT.
+El token debe enviarse en el header `Authorization`: `Bearer <token>`.
+
+| Método | Endpoint                            | Descripción                                | Permisos Requeridos                    |
+| ------ | ----------------------------------- | ------------------------------------------ | -------------------------------------- |
+| POST   | `/api/notifications/register-token` | Registrar token push de un dispositivo     | Todos los usuarios autenticados        |
+| POST   | `/api/notifications/send-to-all`    | Enviar notificación a todos los usuarios   | **Celador** (Admin)                    |
+| POST   | `/api/notifications/send-to-users`  | Enviar notificación a usuarios específicos | **Celador** (Admin)                    |
+| GET    | `/api/notifications`                | Obtener historial de notificaciones        | Todos los usuarios autenticados        |
+| GET    | `/api/notifications/:id`            | Obtener una notificación por ID            | Todos los usuarios autenticados        |
+| DELETE | `/api/notifications/:id`            | Eliminar una notificación                  | **Celador** (Admin)                    |
 
 ---
 

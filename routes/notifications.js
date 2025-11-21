@@ -2,10 +2,14 @@ const express = require("express");
 const User = require("../models/User");
 const Notification = require("../models/Notification");
 const NotificationService = require("../services/notificationService");
+const { verifyToken, verifyRole } = require("../middleware/auth");
 
 const router = express.Router();
 
-// POST /api/notifications/register-token - Registrar token de notificaciones push
+// Aplicar verificación de token a todas las rutas
+router.use(verifyToken);
+
+// POST /api/notifications/register-token - Registrar token de notificaciones push (Cualquier usuario autenticado)
 router.post("/register-token", async (req, res) => {
   try {
     const { user_id, expo_push_token } = req.body;
@@ -14,6 +18,16 @@ router.post("/register-token", async (req, res) => {
       `📱 Registrando token push para usuario: ${user_id}`,
       expo_push_token
     );
+
+    // Validar que el usuario que hace la petición sea el mismo que el user_id (o sea admin/celador)
+    // Por ahora permitimos que cualquiera registre su propio token
+    if (req.user.id !== user_id && req.user.user_type !== "celador") {
+      return res.status(403).json({
+        success: false,
+        message: "No tienes permiso para registrar el token de otro usuario",
+        data: null,
+      });
+    }
 
     if (!user_id || !expo_push_token) {
       return res.status(400).json({
@@ -51,8 +65,8 @@ router.post("/register-token", async (req, res) => {
   }
 });
 
-// POST /api/notifications/send-to-all - Enviar notificación a todos
-router.post("/send-to-all", async (req, res) => {
+// POST /api/notifications/send-to-all - Enviar notificación a todos (Solo Celador)
+router.post("/send-to-all", verifyRole(["celador"]), async (req, res) => {
   try {
     const { title, message, data, user_type } = req.body;
 
@@ -95,8 +109,8 @@ router.post("/send-to-all", async (req, res) => {
   }
 });
 
-// POST /api/notifications/send-to-users - Enviar notificación a usuarios específicos
-router.post("/send-to-users", async (req, res) => {
+// POST /api/notifications/send-to-users - Enviar notificación a usuarios específicos (Solo Celador)
+router.post("/send-to-users", verifyRole(["celador"]), async (req, res) => {
   try {
     const { user_ids, title, message, data } = req.body;
 
@@ -147,7 +161,7 @@ router.post("/send-to-users", async (req, res) => {
   }
 });
 
-// GET /api/notifications - Obtener historial de notificaciones
+// GET /api/notifications - Obtener historial de notificaciones (Todos los usuarios autenticados)
 router.get("/", async (req, res) => {
   try {
     const { user_id, status } = req.query;
@@ -177,7 +191,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/notifications/:id - Obtener notificación por ID
+// GET /api/notifications/:id - Obtener notificación por ID (Todos los usuarios autenticados)
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -209,8 +223,8 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// DELETE /api/notifications/:id - Eliminar notificación
-router.delete("/:id", async (req, res) => {
+// DELETE /api/notifications/:id - Eliminar notificación (Solo Celador)
+router.delete("/:id", verifyRole(["celador"]), async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`🗑️  Eliminando notificación con ID: ${id}`);

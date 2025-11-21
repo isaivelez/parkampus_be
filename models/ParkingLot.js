@@ -5,7 +5,9 @@ class ParkingLot {
   constructor(parkingLotData) {
     this.name = parkingLotData.name;
     this.moto_available = parkingLotData.moto_available || 0;
+    this.moto_max_available = parkingLotData.moto_max_available || 0;
     this.car_available = parkingLotData.car_available || 0;
+    this.car_max_available = parkingLotData.car_max_available || 0;
     this.created_at = new Date();
     this.updated_at = new Date();
   }
@@ -30,19 +32,48 @@ class ParkingLot {
   static validateNumericFields(parkingLotData) {
     const errors = [];
 
+    const numericFields = [
+      "moto_available",
+      "car_available",
+      "moto_max_available",
+      "car_max_available",
+    ];
+
+    numericFields.forEach((field) => {
+      if (
+        parkingLotData[field] !== undefined &&
+        (isNaN(parkingLotData[field]) || parkingLotData[field] < 0)
+      ) {
+        errors.push(`${field} debe ser un número mayor o igual a 0`);
+      }
+    });
+
+    return errors;
+  }
+
+  static validateCapacity(parkingLotData) {
+    const errors = [];
+
+    // Validar motos
     if (
       parkingLotData.moto_available !== undefined &&
-      (isNaN(parkingLotData.moto_available) ||
-        parkingLotData.moto_available < 0)
+      parkingLotData.moto_max_available !== undefined
     ) {
-      errors.push("moto_available debe ser un número mayor o igual a 0");
+      if (parkingLotData.moto_available > parkingLotData.moto_max_available) {
+        errors.push(
+          "moto_available no puede ser mayor que moto_max_available"
+        );
+      }
     }
 
+    // Validar carros
     if (
       parkingLotData.car_available !== undefined &&
-      (isNaN(parkingLotData.car_available) || parkingLotData.car_available < 0)
+      parkingLotData.car_max_available !== undefined
     ) {
-      errors.push("car_available debe ser un número mayor o igual a 0");
+      if (parkingLotData.car_available > parkingLotData.car_max_available) {
+        errors.push("car_available no puede ser mayor que car_max_available");
+      }
     }
 
     return errors;
@@ -65,6 +96,20 @@ class ParkingLot {
     const numericErrors = this.validateNumericFields(parkingLotData);
     if (numericErrors.length > 0) {
       throw new Error(numericErrors.join(", "));
+    }
+
+    // Validar capacidades (available <= max_available)
+    // Asegurar que si no vienen, se usen los valores por defecto (0) para la validación
+    const dataToValidate = {
+      moto_available: parkingLotData.moto_available || 0,
+      moto_max_available: parkingLotData.moto_max_available || 0,
+      car_available: parkingLotData.car_available || 0,
+      car_max_available: parkingLotData.car_max_available || 0,
+    };
+
+    const capacityErrors = this.validateCapacity(dataToValidate);
+    if (capacityErrors.length > 0) {
+      throw new Error(capacityErrors.join(", "));
     }
 
     // Verificar si ya existe un parking lot con el mismo nombre
@@ -138,6 +183,40 @@ class ParkingLot {
       const numericErrors = this.validateNumericFields(parkingLotData);
       if (numericErrors.length > 0) {
         throw new Error(numericErrors.join(", "));
+      }
+
+      // Obtener el documento actual para validar capacidades con los nuevos valores
+      const currentParkingLot = await parkingLotsCollection.findOne({
+        _id: new ObjectId(id),
+      });
+
+      if (!currentParkingLot) {
+        throw new Error("Parking lot no encontrado");
+      }
+
+      // Combinar datos actuales con los nuevos para validar
+      const mergedData = {
+        moto_available:
+          parkingLotData.moto_available !== undefined
+            ? parkingLotData.moto_available
+            : currentParkingLot.moto_available,
+        moto_max_available:
+          parkingLotData.moto_max_available !== undefined
+            ? parkingLotData.moto_max_available
+            : currentParkingLot.moto_max_available,
+        car_available:
+          parkingLotData.car_available !== undefined
+            ? parkingLotData.car_available
+            : currentParkingLot.car_available,
+        car_max_available:
+          parkingLotData.car_max_available !== undefined
+            ? parkingLotData.car_max_available
+            : currentParkingLot.car_max_available,
+      };
+
+      const capacityErrors = this.validateCapacity(mergedData);
+      if (capacityErrors.length > 0) {
+        throw new Error(capacityErrors.join(", "));
       }
 
       // Si se está actualizando el nombre, verificar que no exista otro con el mismo

@@ -8,7 +8,15 @@
 http://localhost:3000/api/users
 ```
 
-## 1. Crear Usuario (POST /api/users)
+## 1. Roles y Permisos
+
+El sistema maneja los siguientes roles de usuario:
+
+- **Estudiante (`estudiante`)**: Acceso básico. Puede ver parking lots y notificaciones.
+- **Celador (`celador`)**: Acceso administrativo. Puede gestionar (crear, editar, eliminar) parking lots y enviar notificaciones.
+- **Empleado (`empleado`)**: Acceso similar al estudiante (por definir permisos específicos).
+
+## 2. Crear Usuario (POST /api/users)
 
 > [!NOTE]
 > Las contraseñas se hashean automáticamente antes de guardarse en la base de datos.

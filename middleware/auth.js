@@ -35,4 +35,24 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-module.exports = verifyToken;
+const verifyRole = (allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Acceso denegado. Usuario no autenticado.",
+      });
+    }
+
+    if (!allowedRoles.includes(req.user.user_type)) {
+      return res.status(403).json({
+        success: false,
+        message: `Acceso denegado. Se requiere rol: ${allowedRoles.join(" o ")}`,
+      });
+    }
+
+    next();
+  };
+};
+
+module.exports = { verifyToken, verifyRole };
