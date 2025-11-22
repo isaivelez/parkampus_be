@@ -14,12 +14,18 @@ router.post("/", async (req, res) => {
     // Intentar autenticar usuario
     const user = await User.login(email, password);
 
-    // Generar JWT
+    // Generar JWT con toda la información del usuario (excepto password)
     const token = jwt.sign(
       {
-        id: user._id,
+        _id: user._id.toString(),
+        first_name: user.first_name,
+        last_name: user.last_name,
         email: user.email,
         user_type: user.user_type,
+        expo_push_token: user.expo_push_token,
+        schedule: user.schedule || [],
+        created_at: user.created_at,
+        updated_at: user.updated_at,
       },
       process.env.JWT_SECRET || "secreto_super_seguro_por_defecto", // Fallback solo para dev
       { expiresIn: "24h" }
@@ -36,6 +42,8 @@ router.post("/", async (req, res) => {
           last_name: user.last_name,
           email: user.email,
           user_type: user.user_type,
+          expo_push_token: user.expo_push_token,
+          schedule: user.schedule || [],
           created_at: user.created_at,
           updated_at: user.updated_at,
         },

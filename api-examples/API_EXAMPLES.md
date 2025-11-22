@@ -57,6 +57,39 @@ El sistema maneja los siguientes roles de usuario:
 }
 ```
 
+### Ejemplo 4: Estudiante con horario de clases
+
+```json
+{
+  "first_name": "Juan",
+  "last_name": "Pérez García",
+  "email": "juan.perez@estudiante.edu.co",
+  "password": "miPassword123",
+  "user_type": "estudiante",
+  "schedule": [
+    {
+      "day": "Lunes",
+      "start_time": "07:00",
+      "end_time": "13:00"
+    },
+    {
+      "day": "Miércoles",
+      "start_time": "14:00",
+      "end_time": "18:00"
+    },
+    {
+      "day": "Viernes",
+      "start_time": "08:00",
+      "end_time": "11:00"
+    }
+  ]
+}
+```
+
+> [!NOTE]
+> El campo `schedule` es opcional. Los horarios usan formato de 24 horas (HH:MM) y los días deben ser en español: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo.
+
+
 ### Respuesta exitosa (201 Created):
 
 ```json
@@ -152,7 +185,127 @@ GET http://localhost:3000/api/users/507f1f77bcf86cd799439011
 }
 ```
 
-## Comandos cURL para pruebas
+## 4. Actualizar Usuario (PATCH /api/users/:id)
+
+> [!IMPORTANT]
+> Este endpoint requiere autenticación. El usuario solo puede actualizar su propio perfil.
+
+Este endpoint permite actualizar cualquier campo del usuario, incluyendo su horario de clases.
+
+### URL de ejemplo:
+
+```
+PATCH http://localhost:3000/api/users/507f1f77bcf86cd799439011
+```
+
+### Headers Requeridos:
+
+```
+Content-Type: application/json
+Authorization: Bearer <tu_token_jwt>
+```
+
+### Body del Request - Ejemplo 1: Actualizar schedule:
+
+```json
+{
+  "schedule": [
+    {
+      "day": "Martes",
+      "start_time": "09:00",
+      "end_time": "12:00"
+    },
+    {
+      "day": "Jueves",
+      "start_time": "15:00",
+      "end_time": "17:30"
+    }
+  ]
+}
+```
+
+### Body del Request - Ejemplo 2: Actualizar múltiples campos:
+
+```json
+{
+  "first_name": "Juan Carlos",
+  "schedule": [
+    {
+      "day": "Lunes",
+      "start_time": "07:00",
+      "end_time": "13:00"
+    },
+    {
+      "day": "Viernes",
+      "start_time": "14:00",
+      "end_time": "16:00"
+    }
+  ]
+}
+```
+
+### Respuesta exitosa (200 OK):
+
+```json
+{
+  "success": true,
+  "message": "Usuario actualizado exitosamente",
+  "data": {
+    "_id": "6912457d4e01044294493355",
+    "first_name": "Juan",
+    "last_name": "Pérez García",
+    "email": "juan.perez@estudiante.edu.co",
+    "user_type": "estudiante",
+    "created_at": "2025-11-10T20:05:17.077Z",
+    "updated_at": "2025-11-21T21:18:01.248Z",
+    "schedule": [
+      {
+        "day": "Lunes",
+        "start_time": "07:00",
+        "end_time": "13:00"
+      },
+      {
+        "day": "Miércoles",
+        "start_time": "14:00",
+        "end_time": "18:00"
+      },
+      {
+        "day": "Viernes",
+        "start_time": "08:00",
+        "end_time": "11:00"
+      }
+    ]
+  }
+}
+```
+
+### Validaciones del Schedule:
+
+> [!IMPORTANT]
+> El campo `schedule` tiene las siguientes validaciones:
+> - **day**: Debe ser uno de: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo
+> - **start_time** y **end_time**: Deben estar en formato HH:MM (24 horas, por ejemplo: "07:00", "13:30", "18:45")
+> - **start_time** debe ser menor que **end_time**
+
+### Respuesta de error - Validación de schedule (400 Bad Request):
+
+```json
+{
+  "success": false,
+  "message": "start_time debe ser menor que end_time en posición 0 (18:00 >= 13:00)",
+  "data": null
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Día inválido \"Monday\" en posición 0. Debe ser uno de: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo",
+  "data": null
+}
+```
+
+## 5. Comandos cURL para pruebas
 
 ### Crear usuario:
 
@@ -174,6 +327,28 @@ curl -X POST http://localhost:3000/api/users \
 curl -X GET http://localhost:3000/api/users
 ```
 
+### Actualizar usuario (schedule):
+
+```bash
+curl -X PATCH http://localhost:3000/api/users/507f1f77bcf86cd799439011 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TU_TOKEN_JWT" \
+  -d '{
+    "schedule": [
+      {
+        "day": "Lunes",
+        "start_time": "07:00",
+        "end_time": "13:00"
+      },
+      {
+        "day": "Viernes",
+        "start_time": "14:00",
+        "end_time": "16:00"
+      }
+    ]
+  }'
+```
+
 ### Obtener usuario por ID:
 
 ```bash
@@ -187,6 +362,11 @@ curl -X GET http://localhost:3000/api/users/507f1f77bcf86cd799439011
 3. **Formato de email**: Validación con regex
 4. **Email único**: No se permiten emails duplicados
 5. **Seguridad**: Las contraseñas no se devuelven en las respuestas
+6. **Schedule** (opcional):
+   - Días válidos: Lunes, Martes, Miércoles, Jueves, Viernes, Sábado, Domingo
+   - Formato de hora: HH:MM (24 horas)
+   - start_time debe ser menor que end_time
+
 
 ## Cómo probar
 
@@ -318,12 +498,13 @@ curl -X GET http://localhost:3000/api/users/profile \
 
 ## Resumen de Endpoints
 
-| Método | Endpoint         | Descripción                | Auth Requerida |
-| ------ | ---------------- | -------------------------- | -------------- |
-| POST   | `/api/users`     | Crear nuevo usuario        | No             |
-| GET    | `/api/users`     | Obtener todos los usuarios | No             |
-| GET    | `/api/users/:id` | Obtener usuario por ID     | No             |
-| POST   | `/api/login`     | Autenticar usuario         | No             |
-| GET    | `/api/users/profile` | Obtener perfil propio  | **Sí**         |
-| GET    | `/health`        | Health check del servidor  | No             |
+| Método | Endpoint             | Descripción                | Auth Requerida |
+| ------ | -------------------- | -------------------------- | -------------- |
+| POST   | `/api/users`         | Crear nuevo usuario        | No             |
+| GET    | `/api/users`         | Obtener todos los usuarios | No             |
+| GET    | `/api/users/:id`     | Obtener usuario por ID     | No             |
+| PATCH  | `/api/users/:id`     | Actualizar usuario         | **Sí** (solo propio) |
+| POST   | `/api/login`         | Autenticar usuario         | No             |
+| GET    | `/api/users/profile` | Obtener perfil propio      | **Sí**         |
+| GET    | `/health`            | Health check del servidor  | No             |
 

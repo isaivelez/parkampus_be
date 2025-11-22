@@ -8,7 +8,7 @@ const router = express.Router();
 router.get("/profile", verifyToken, async (req, res) => {
   try {
     // req.user viene del middleware verifyToken
-    const userId = req.user.id;
+    const userId = req.user._id;
     console.log(`👤 Obteniendo perfil para usuario ID: ${userId}`);
 
     const user = await User.findById(userId);
@@ -106,6 +106,43 @@ router.get("/:id", async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error al obtener usuario:", error.message);
+
+    res.status(400).json({
+      success: false,
+      message: error.message,
+      data: null,
+    });
+  }
+});
+
+// PATCH /users/:id - Actualizar usuario parcialmente (incluyendo schedule)
+// Requiere autenticación: el usuario solo puede actualizarse a sí mismo
+router.patch("/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const authenticatedUserId = req.user._id;
+
+    // Verificar que el usuario solo pueda actualizar su propio perfil
+    if (authenticatedUserId !== id) {
+      return res.status(403).json({
+        success: false,
+        message: "No tienes permiso para actualizar este usuario",
+        data: null,
+      });
+    }
+
+    console.log(`✏️ Actualizando usuario con ID: ${id}`);
+    console.log("Datos recibidos:", req.body);
+
+    const updatedUser = await User.update(id, req.body);
+
+    res.status(200).json({
+      success: true,
+      message: "Usuario actualizado exitosamente",
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("❌ Error al actualizar usuario:", error.message);
 
     res.status(400).json({
       success: false,

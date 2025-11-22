@@ -10,6 +10,7 @@ class User {
     this.password = userData.password;
     this.user_type = userData.user_type;
     this.expo_push_token = userData.expo_push_token || null; // Token para notificaciones push
+    this.schedule = userData.schedule || []; // Horario de clases
     this.created_at = new Date();
     this.updated_at = new Date();
   }
@@ -23,6 +24,68 @@ class User {
   static validateEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  }
+
+  static validateSchedule(schedule) {
+    if (!Array.isArray(schedule)) {
+      throw new Error("El schedule debe ser un arreglo");
+    }
+
+    const validDays = [
+      "Lunes",
+      "Martes",
+      "Miércoles",
+      "Jueves",
+      "Viernes",
+      "Sábado",
+      "Domingo",
+    ];
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/; // HH:MM formato 24 horas
+
+    for (let i = 0; i < schedule.length; i++) {
+      const entry = schedule[i];
+
+      // Validar que tenga las propiedades requeridas
+      if (!entry.day || !entry.start_time || !entry.end_time) {
+        throw new Error(
+          `Entrada de horario en posición ${i} debe tener day, start_time y end_time`
+        );
+      }
+
+      // Validar día
+      if (!validDays.includes(entry.day)) {
+        throw new Error(
+          `Día inválido "${entry.day}" en posición ${i}. Debe ser uno de: ${validDays.join(", ")}`
+        );
+      }
+
+      // Validar formato de tiempo
+      if (!timeRegex.test(entry.start_time)) {
+        throw new Error(
+          `start_time "${entry.start_time}" en posición ${i} debe estar en formato HH:MM (24 horas)`
+        );
+      }
+
+      if (!timeRegex.test(entry.end_time)) {
+        throw new Error(
+          `end_time "${entry.end_time}" en posición ${i} debe estar en formato HH:MM (24 horas)`
+        );
+      }
+
+      // Validar que start_time < end_time
+      const [startHour, startMin] = entry.start_time.split(":").map(Number);
+      const [endHour, endMin] = entry.end_time.split(":").map(Number);
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
+
+      if (startMinutes >= endMinutes) {
+        throw new Error(
+          `La hora de inicio (${entry.start_time}) debe ser anterior a la hora de salida (${entry.end_time}) para el día ${entry.day}`
+        );
+      }
+    }
+
+    return true;
   }
 
   static validateRequiredFields(userData) {
@@ -77,6 +140,11 @@ class User {
       throw new Error("Ya existe un usuario con este email");
     }
 
+    // Validar schedule si se proporciona
+    if (userData.schedule && userData.schedule.length > 0) {
+      this.validateSchedule(userData.schedule);
+    }
+
     // Hashear contraseña
     const salt = await bcrypt.genSalt(10);
     userData.password = await bcrypt.hash(userData.password, salt);
@@ -124,14 +192,19 @@ class User {
     const usersCollection = db.collection("users");
 
     try {
+      // Validar que el ID sea un ObjectId válido
       if (!ObjectId.isValid(id)) {
         throw new Error("ID de usuario inválido");
       }
 
       const user = await usersCollection.findOne(
         { _id: new ObjectId(id) },
-        { projection: { password: 0 } }
+        { projection: { password: 0 } } // Excluir solo la contraseña
       );
+
+      if (!user) {
+        return null;
+      }
 
       return user;
     } catch (error) {
@@ -186,6 +259,84 @@ class User {
       return userWithoutPassword;
     } catch (error) {
       throw error;
+    }
+  }
+
+  // Actualizar usuario
+  static async update(id, userData) {
+    const db = getDB();
+    const usersCollection = db.collection("users");
+
+    try {
+      // Validar ObjectId
+      if (!ObjectId.isValid(id)) {
+        throw new Error("ID de usuario inválido");
+      }
+
+      // Verificar si el usuario existe
+      const existingUser = await usersCollection.findOne({
+        _id: new ObjectId(id),
+      });
+
+      if (!existingUser) {
+        throw new Error("Usuario no encontrado");
+      }
+
+      // Preparar datos de actualización
+      const updateData = { ...userData };
+      updateData.updated_at = new Date();
+
+      // Si se está actualizando el email, validar formato y duplicados
+      if (updateData.email) {
+        if (!this.validateEmail(updateData.email)) {
+          throw new Error("Formato de email inválido");
+        }
+
+        // Verificar que el email no esté en uso por otro usuario
+        const emailExists = await usersCollection.findOne({
+          email: updateData.email,
+          _id: { $ne: new ObjectId(id) },
+        });
+
+        if (emailExists) {
+          throw new Error("Ya existe un usuario con este email");
+        }
+      }
+
+      // Si se está actualizando el tipo de usuario, validar
+      if (updateData.user_type && !this.validateUserType(updateData.user_type)) {
+        throw new Error(
+          "Tipo de usuario inválido. Debe ser: estudiante, celador o empleado"
+        );
+      }
+
+      // Si se está actualizando la contraseña, hashearla
+      if (updateData.password) {
+        const salt = await bcrypt.genSalt(10);
+        updateData.password = await bcrypt.hash(updateData.password, salt);
+      }
+
+      // Validar schedule si se proporciona
+      if (updateData.schedule !== undefined) {
+        if (updateData.schedule.length > 0) {
+          this.validateSchedule(updateData.schedule);
+        }
+      }
+
+      // Actualizar usuario
+      const result = await usersCollection.findOneAndUpdate(
+        { _id: new ObjectId(id) },
+        { $set: updateData },
+        { returnDocument: "after", projection: { password: 0 } }
+      );
+
+      if (!result) {
+        throw new Error("Error al actualizar usuario");
+      }
+
+      return result;
+    } catch (error) {
+      throw new Error(`Error al actualizar usuario: ${error.message}`);
     }
   }
 
