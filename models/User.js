@@ -11,6 +11,13 @@ class User {
     this.user_type = userData.user_type;
     this.expo_push_token = userData.expo_push_token || null; // Token para notificaciones push
     this.schedule = userData.schedule || []; // Horario de clases
+    this.notification_preferences = userData.notification_preferences || {
+      CIERRE_NOCTURNO: true,
+      LIBERACION_HORA_PICO: true,
+      CIERRE_SEGURIDAD: false,
+      EVENTO_INSTITUCIONAL: true,
+      MANTENIMIENTO_EMERGENCIA: true,
+    };
     this.created_at = new Date();
     this.updated_at = new Date();
   }
@@ -408,20 +415,30 @@ class User {
 
   /**
    * Busca usuarios por día de horario y tipo de usuario
+   * Filtra para incluir SOLO usuarios que:
+   * - Tengan clase/trabajo hoy
+   * - Estén en su última hora de clase O hasta 1 hora después de que terminó
+   * 
    * @param {string} day - Día de la semana (ej: "Lunes")
    * @param {Array<string>} userTypes - Tipos de usuario a incluir (ej: ["estudiante", "empleado"])
-   * @returns {Promise<Array>} - Lista de usuarios (solo email, nombre y tipo)
+   * @param {Date} currentTime - Hora actual (opcional, por defecto new Date())
+   * @returns {Promise<Array>} - Lista de usuarios elegibles
    */
-  static async findUsersByDayAndType(day, userTypes = ["estudiante", "empleado"]) {
+  static async findUsersByDayAndType(day, userTypes = ["estudiante", "empleado"], currentTime = new Date()) {
     try {
       const db = getDB();
       const usersCollection = db.collection("users");
 
-      console.log(`🔍 Buscando usuarios para notificación masiva: Día=${day}, Tipos=${userTypes.join(",")}`);
+      const currentHour = currentTime.getHours();
+      const currentMinute = currentTime.getMinutes();
+      const currentTotalMinutes = currentHour * 60 + currentMinute;
 
-      // Query:
-      // 1. user_type está en la lista permitida
-      // 2. schedule contiene un objeto donde day coincide
+      console.log(`🔍 Buscando usuarios para notificación masiva:`);
+      console.log(`   Día: ${day}`);
+      console.log(`   Tipos: ${userTypes.join(", ")}`);
+      console.log(`   Hora actual: ${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`);
+
+      // Primero obtener todos los usuarios con horario en este día
       const query = {
         user_type: { $in: userTypes },
         schedule: {
@@ -429,18 +446,72 @@ class User {
         }
       };
 
-      // Proyección: Solo necesitamos email y nombre para el correo
       const projection = {
         email: 1,
         first_name: 1,
         last_name: 1,
-        user_type: 1
+        user_type: 1,
+        schedule: 1 // Necesitamos el schedule completo para filtrar
       };
 
       const users = await usersCollection.find(query, { projection }).toArray();
       
-      console.log(`   ✅ Encontrados ${users.length} usuarios potenciales`);
-      return users;
+      console.log(`   📋 Usuarios con horario hoy: ${users.length}`);
+
+      // Filtrar usuarios según la lógica temporal
+      const eligibleUsers = users.filter(user => {
+        // Encontrar todas las clases de hoy para este usuario
+        const todaySchedule = user.schedule.filter(entry => entry.day === day);
+        
+        if (todaySchedule.length === 0) return false;
+
+        // Encontrar la última clase del día (la que termina más tarde)
+        let lastClass = todaySchedule[0];
+        let lastEndMinutes = 0;
+
+        todaySchedule.forEach(entry => {
+          const [endHour, endMin] = entry.end_time.split(':').map(Number);
+          const endTotalMinutes = endHour * 60 + endMin;
+          
+          if (endTotalMinutes > lastEndMinutes) {
+            lastEndMinutes = endTotalMinutes;
+            lastClass = entry;
+          }
+        });
+
+        // Calcular tiempos
+        const [startHour, startMin] = lastClass.start_time.split(':').map(Number);
+        const [endHour, endMin] = lastClass.end_time.split(':').map(Number);
+        
+        const classStartMinutes = startHour * 60 + startMin;
+        const classEndMinutes = endHour * 60 + endMin;
+        const oneHourAfterEnd = classEndMinutes + 60;
+
+        // Verificar si está en la última hora de clase O hasta 1 hora después
+        // "Última hora de clase" = desde 1 hora antes del fin hasta el fin
+        const lastHourStart = classEndMinutes - 60;
+        
+        const isEligible = currentTotalMinutes >= lastHourStart && currentTotalMinutes <= oneHourAfterEnd;
+
+        if (isEligible) {
+          console.log(`   ✅ ${user.first_name} ${user.last_name}: Última clase ${lastClass.start_time}-${lastClass.end_time} (elegible)`);
+        } else {
+          console.log(`   ❌ ${user.first_name} ${user.last_name}: Última clase ${lastClass.start_time}-${lastClass.end_time} (fuera de ventana)`);
+        }
+
+        return isEligible;
+      });
+
+      console.log(`   🎯 Usuarios elegibles para recibir correo: ${eligibleUsers.length}`);
+
+      // Remover el campo schedule de la respuesta (no es necesario para el envío)
+      return eligibleUsers.map(user => ({
+        _id: user._id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        user_type: user.user_type
+      }));
     } catch (error) {
       throw new Error(`Error al buscar usuarios para notificación: ${error.message}`);
     }

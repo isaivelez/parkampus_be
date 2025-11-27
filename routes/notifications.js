@@ -91,15 +91,97 @@ router.post(
 );
 
 // GET /api/notifications/history
-// Ver historial de notificaciones (opcional, para el celador)
-router.get("/history", verifyToken, verifyRole(["celador", "admin"]), async (req, res) => {
+// Ver historial de notificaciones filtradas por horario del usuario
+// Solo muestra notificaciones enviadas en días/horas relevantes para el usuario
+// EXCEPCIÓN: Los celadores ven TODAS las notificaciones sin filtrado
+router.get("/history", verifyToken, async (req, res) => {
   try {
-    const history = await Notification.findAll();
+    const userId = req.user._id;
+    
+    // Obtener el usuario completo con su schedule
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Usuario no encontrado",
+      });
+    }
+
+    // Obtener todas las notificaciones
+    const allNotifications = await Notification.findAll();
+
+    // Si es celador, devolver TODAS las notificaciones sin filtrar
+    if (user.user_type === "celador") {
+      console.log(`📋 Celador ${user.first_name}: Mostrando todas las ${allNotifications.length} notificaciones (sin filtrado)`);
+      return res.status(200).json({
+        success: true,
+        data: allNotifications,
+        total: allNotifications.length,
+        filtered: false, // Indicar que no se aplicó filtrado
+      });
+    }
+
+    // Para estudiantes y empleados: aplicar filtrado por horario
+    // Si el usuario no tiene schedule, devolver array vacío
+    if (!user.schedule || user.schedule.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: "No tienes horario configurado",
+        filtered: true,
+      });
+    }
+
+    // Filtrar notificaciones según el horario del usuario
+    const filteredNotifications = allNotifications.filter(notification => {
+      const notificationDate = new Date(notification.created_at);
+      const dayOfWeek = DAYS_MAP[notificationDate.getDay()];
+      const notificationHour = notificationDate.getHours();
+      const notificationMinute = notificationDate.getMinutes();
+      const notificationTotalMinutes = notificationHour * 60 + notificationMinute;
+
+      // Verificar si el usuario tiene clase ese día
+      const daySchedule = user.schedule.filter(entry => entry.day === dayOfWeek);
+      
+      if (daySchedule.length === 0) {
+        return false; // No tiene clase ese día
+      }
+
+      // Encontrar la última clase del día
+      let lastClass = daySchedule[0];
+      let lastEndMinutes = 0;
+
+      daySchedule.forEach(entry => {
+        const [endHour, endMin] = entry.end_time.split(':').map(Number);
+        const endTotalMinutes = endHour * 60 + endMin;
+        
+        if (endTotalMinutes > lastEndMinutes) {
+          lastEndMinutes = endTotalMinutes;
+          lastClass = entry;
+        }
+      });
+
+      // Calcular ventana de tiempo (última hora de clase + 1 hora después)
+      const [endHour, endMin] = lastClass.end_time.split(':').map(Number);
+      const classEndMinutes = endHour * 60 + endMin;
+      const lastHourStart = classEndMinutes - 60; // 1 hora antes del fin
+      const oneHourAfterEnd = classEndMinutes + 60; // 1 hora después del fin
+
+      // Verificar si la notificación fue enviada en la ventana de tiempo relevante
+      return notificationTotalMinutes >= lastHourStart && notificationTotalMinutes <= oneHourAfterEnd;
+    });
+
+    console.log(`📋 ${user.user_type} ${user.first_name}: ${allNotifications.length} notificaciones totales, ${filteredNotifications.length} relevantes`);
+
     res.status(200).json({
       success: true,
-      data: history,
+      data: filteredNotifications,
+      total: filteredNotifications.length,
+      filtered: true, // Indicar que se aplicó filtrado
     });
   } catch (error) {
+    console.error("❌ Error al obtener historial:", error.message);
     res.status(500).json({
       success: false,
       message: "Error al obtener historial",
