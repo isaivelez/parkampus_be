@@ -405,6 +405,46 @@ class User {
       throw new Error(`Error al obtener tokens push: ${error.message}`);
     }
   }
+
+  /**
+   * Busca usuarios por día de horario y tipo de usuario
+   * @param {string} day - Día de la semana (ej: "Lunes")
+   * @param {Array<string>} userTypes - Tipos de usuario a incluir (ej: ["estudiante", "empleado"])
+   * @returns {Promise<Array>} - Lista de usuarios (solo email, nombre y tipo)
+   */
+  static async findUsersByDayAndType(day, userTypes = ["estudiante", "empleado"]) {
+    try {
+      const db = getDB();
+      const usersCollection = db.collection("users");
+
+      console.log(`🔍 Buscando usuarios para notificación masiva: Día=${day}, Tipos=${userTypes.join(",")}`);
+
+      // Query:
+      // 1. user_type está en la lista permitida
+      // 2. schedule contiene un objeto donde day coincide
+      const query = {
+        user_type: { $in: userTypes },
+        schedule: {
+          $elemMatch: { day: day }
+        }
+      };
+
+      // Proyección: Solo necesitamos email y nombre para el correo
+      const projection = {
+        email: 1,
+        first_name: 1,
+        last_name: 1,
+        user_type: 1
+      };
+
+      const users = await usersCollection.find(query, { projection }).toArray();
+      
+      console.log(`   ✅ Encontrados ${users.length} usuarios potenciales`);
+      return users;
+    } catch (error) {
+      throw new Error(`Error al buscar usuarios para notificación: ${error.message}`);
+    }
+  }
 }
 
 module.exports = User;
